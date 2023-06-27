@@ -6,5 +6,6 @@
 ## SavedVariables: NovaBoostingDB
 
 Libs\LibStub\LibStub.lua
+Libs\LibDeflate\LibDeflate.lua
 Libs\LibOpenRaid\LibOpenRaid.lua
 core.lua
