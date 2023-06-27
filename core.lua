@@ -52,9 +52,11 @@ local function OnEvent(self, event, ...)
         if self.db.dungeonCount == 0 then
             self.db.startTime = GetTime()
         end
+        throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         self.db.dungeonCount = self.db.dungeonCount + 1
         checkProgress(self.db)
+        throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
     end
 end
 
@@ -96,11 +98,13 @@ SlashCmdList.NBUI = function(msg)
     elseif msg == "last" then
         throwEvent("PLAYERS", db.lastPlayers, db)
         throwEvent("BOOST", db.lastTitle, db)
+        throwEvent("DUNGEON", {count = db.dungeonCount, max = db.maxDungeons}, db)
     elseif msg == "start" then
         db.active = true
         db.startTime = GetTime()
         printMessage("Boost started")
     elseif msg == "stop" then
+        db.dungeonCount = db.maxDungeons
         checkProgress(db)
     elseif msg == "help" then
         printMessage("/nb and /boost can be used as Prefix")
