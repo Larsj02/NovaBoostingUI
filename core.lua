@@ -1,4 +1,9 @@
 local addonName = ...
+local fontSize = select(2, GetChatWindowInfo(1))
+local addonPrefix = string.format("[|TInterface\\Addons\\NovaBoostingUI\\Images\\Logo.png:%d|t|cFFEF9009%s|r]", fontSize, addonName)
+local function printMessage(msg, ...)
+    print(string.format("%s: " .. msg, addonPrefix, ...))
+end
 
 local lastData = {}
 local lastTitle = {}
@@ -27,17 +32,7 @@ local function Nova_IterateGroup(reversed, forceParty)
     end
 end
 
-local function OnEvent(self, event, ...)
-	if event == "ADDON_LOADED" then
-        if ... == addonName then
-            print(string.format("%s: loaded", addonName))
-        end
-    end
-end
-
 local f = CreateFrame("Frame")
-f:RegisterEvent("ADDON_LOADED")
-f:SetScript("OnEvent", OnEvent)
 
 function f.OnGearUpdate()
     local data = {}
@@ -46,7 +41,7 @@ function f.OnGearUpdate()
         local uScore = C_PlayerInfo.GetPlayerMythicPlusRatingSummary(unit)
         if uGear then
             local ilvl = uGear.ilevel
-            local score = uScore.currentSeasonScore
+            local score = uScore and uScore.currentSeasonScore or 0
             data[unit] = {ilvl, score}
         end
     end
@@ -59,11 +54,12 @@ openRaidLib.RegisterCallback(f, "GearUpdate", "OnGearUpdate")
 SLASH_NBUI1 = "/nb"
 SLASH_NBUI2 = "/boost"
 
-SlashCmdList.NBUI = function(msg)
+SlashCmdList.NBUI = function(msg, msgBox)
+    local fontSize = msgBox.fontSize
     if msg == "reset" then
         throwEvent("RESET")
     elseif msg == "players" then
-        print(string.format("%s: Requesting Player Data", addonName))
+        printMessage("Requesting Player Data")
         openRaidLib.RequestAllData()
         if lastData then throwEvent("PLAYERS", lastData) end
     elseif msg == "last" then
@@ -72,24 +68,25 @@ SlashCmdList.NBUI = function(msg)
     elseif msg == "start" then
         active = true
         startTime = GetTime()
-        print(string.format("%s: Boost started", addonName))
+        printMessage("Boost started")
     elseif msg == "stop" then
         active = false
         local time = GetTime() - startTime
         local formattedTime = string.format("%d:%02d", time / 60, time % 60)
-        print(string.format("%s: the Boost took %s and you made %s Gold (%s Gold per Hour)", addonName, formattedTime, BreakUpLargeNumbers(lastTitle.cut), BreakUpLargeNumbers(lastTitle.cut / (time / 60 / 60))))
+        local formattedCut = BreakUpLargeNumbers(lastTitle.cut)
+        local formattedCutPerHour = BreakUpLargeNumbers(lastTitle.cut / (time / 60 / 60))
+        printMessage("the Boost took %s and you made %s Gold (%s Gold per Hour)", formattedTime, formattedCut, formattedCutPerHour)
         throwEvent("RESET")
     elseif msg == "help" then
-        print(string.format("%s: /nb and /boost can be used as Prefix", addonName))
-        print(string.format("%s: /nb help to show this message", addonName))
-        print(string.format("%s: /nb reset to reset data", addonName))
-        print(string.format("%s: /nb players to force update players", addonName))
-        print(string.format("%s: /nb last to show last data", addonName))
-        print(string.format("%s: /nb <title> <cut> to update title and cut", addonName))
-        print(string.format("%s: /nb start to start boost", addonName))
-        print(string.format("%s: /nb stop to stop boost", addonName))
-        print(string.format("%s: /nb calc <cut> to calculate cut", addonName))
-        print(string.format("%s: /nb check <ilvl> to check if you can trade", addonName))
+        printMessage("/nb and /boost can be used as Prefix")
+        printMessage("/nb help to show this message")
+        printMessage("/nb reset to reset data")
+        printMessage("/nb <title> <cut> to update title and cut")
+        printMessage("/nb players to force update players")
+        printMessage("/nb last to show last data")
+        printMessage("/nb start | stop to start or stop the boost")
+        printMessage("/nb calc <cut> to calculate cut (15%%)")
+        printMessage("/nb check <ilvl> to check if you can trade")
     elseif string.match(msg, "^check") then
         local minIlvl = tonumber(string.match(msg, "(%d+)$"))
         local data = {}
@@ -103,16 +100,23 @@ SlashCmdList.NBUI = function(msg)
             end
         end
         throwEvent("CHECK", data)
+        printMessage("Checking for non tradeable Slots (ilvl < %d)", minIlvl)
     elseif string.match(msg, "^calc") then
         local cut = string.match(msg, "(%d+)$")
-        print(string.format("%s: Your cut would be %s Gold", addonName, BreakUpLargeNumbers(tonumber(cut) * 0.15)))
+        printMessage("Your cut would be %s Gold", BreakUpLargeNumbers(tonumber(cut) * 0.15))
     else
         local title, cut = string.match(msg, "(.-)%s+(%d+)$")
+        if (not title) or (not cut) then
+            printMessage("Invalid Syntax use /nb help for more information")
+            return
+        end
+        cut = tonumber(cut) * 0.15
         local data = {
             title = title,
-            cut = tonumber(cut) * 0.15
+            cut = cut
         }
         throwEvent("BOOST", data)
         lastTitle = data
+        printMessage("Set Title to %s and Cut to %s Gold", title, BreakUpLargeNumbers(cut))
     end
 end
