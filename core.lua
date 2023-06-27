@@ -5,16 +5,14 @@ local function printMessage(msg, ...)
     print(string.format("%s: " .. msg, addonPrefix, ...))
 end
 
-local lastData = {}
-local lastTitle = {}
-local active = false
-local startTime = 0
+--[[
+    local lastData = {}
+    local lastTitle = {}
+    local active = false
+    local startTime = 0
+]]
 
 local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-
-local function throwEvent(subEvent, data)
-    WeakAuras.ScanEvents("NOVA_INTERNAL", subEvent, data, active)
-end
 
 local function Nova_IterateGroup(reversed, forceParty)
     local unit = (not forceParty and IsInRaid()) and 'raid' or 'party'
@@ -32,21 +30,40 @@ local function Nova_IterateGroup(reversed, forceParty)
     end
 end
 
+local function OnEvent(self, event, ...)
+    if event == "ADDON_LOADED" then
+        if ... == addonName then
+            NovaBoostingDB = NovaBoostingDB or {}
+            self.db = NovaBoostingDB
+            if self.db.active then
+                printMessage("Boost Still Active from Last Session use /nb last to show last data")
+            end
+        end
+    end
+end
+
 local f = CreateFrame("Frame")
+f:RegisterEvent("ADDON_LOADED")
+f:SetScript("OnEvent", OnEvent)
+
+local function throwEvent(subEvent, data)
+    WeakAuras.ScanEvents("NOVA_INTERNAL", subEvent, data, f.db.active)
+end
 
 function f.OnGearUpdate()
+    local db = f.db
     local data = {}
     for unit in Nova_IterateGroup() do
         local uGear = openRaidLib.GetUnitGear(unit)
         local uScore = C_PlayerInfo.GetPlayerMythicPlusRatingSummary(unit)
         if uGear then
             local ilvl = uGear.ilevel
-            local score = uScore and uScore.currentSeasonScore or 0
+            local score = uScore and uScore.currentSeasonScore or db.lastPlayers[unit] and db.lastPlayers[unit][2] or 0
             data[unit] = {ilvl, score}
         end
     end
     throwEvent("PLAYERS", data)
-    lastData = data
+    db.lastPlayers = data
 end
 
 openRaidLib.RegisterCallback(f, "GearUpdate", "OnGearUpdate")
@@ -54,27 +71,27 @@ openRaidLib.RegisterCallback(f, "GearUpdate", "OnGearUpdate")
 SLASH_NBUI1 = "/nb"
 SLASH_NBUI2 = "/boost"
 
-SlashCmdList.NBUI = function(msg, msgBox)
-    local fontSize = msgBox.fontSize
+SlashCmdList.NBUI = function(msg)
+    local db = f.db
     if msg == "reset" then
         throwEvent("RESET")
     elseif msg == "players" then
         printMessage("Requesting Player Data")
         openRaidLib.RequestAllData()
-        if lastData then throwEvent("PLAYERS", lastData) end
+        if db.lastPlayers then throwEvent("PLAYERS", db.lastPlayers) end
     elseif msg == "last" then
-        throwEvent("PLAYERS", lastData)
-        throwEvent("BOOST", lastTitle)
+        throwEvent("PLAYERS", db.lastPlayers)
+        throwEvent("BOOST", db.lastTitle)
     elseif msg == "start" then
-        active = true
-        startTime = GetTime()
+        db.active = true
+        db.startTime = GetTime()
         printMessage("Boost started")
     elseif msg == "stop" then
-        active = false
-        local time = GetTime() - startTime
+        db.active = false
+        local time = GetTime() - db.startTime
         local formattedTime = string.format("%d:%02d", time / 60, time % 60)
-        local formattedCut = BreakUpLargeNumbers(lastTitle.cut)
-        local formattedCutPerHour = BreakUpLargeNumbers(lastTitle.cut / (time / 60 / 60))
+        local formattedCut = BreakUpLargeNumbers(db.lastTitle.cut)
+        local formattedCutPerHour = BreakUpLargeNumbers(db.lastTitle.cut / (time / 60 / 60))
         printMessage("the Boost took %s and you made %s Gold (%s Gold per Hour)", formattedTime, formattedCut, formattedCutPerHour)
         throwEvent("RESET")
     elseif msg == "help" then
@@ -116,7 +133,7 @@ SlashCmdList.NBUI = function(msg, msgBox)
             cut = cut
         }
         throwEvent("BOOST", data)
-        lastTitle = data
+        db.lastTitle = data
         printMessage("Set Title to %s and Cut to %s Gold", title, BreakUpLargeNumbers(cut))
     end
 end

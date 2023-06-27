@@ -3,6 +3,7 @@
 ## Title: Nova Boosting UI
 ## Notes: Nova Boosting Info UI /nb help
 ## Author: Lars
+## SavedVariables: NovaBoostingDB
 
 Libs\LibStub\LibStub.lua
 Libs\LibOpenRaid\LibOpenRaid.lua
