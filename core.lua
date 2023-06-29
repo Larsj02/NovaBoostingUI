@@ -35,7 +35,7 @@ end
 local function checkProgress(db)
     if db.dungeonCount == db.maxDungeons then
         db.active = false
-        local time = GetTime() - db.startTimelocal
+        local time = GetTime() - db.startTime
         local formattedTime = string.format("%02d:%02d:%02d", time / 3600, (time / 60) % 60, time % 60)
         local formattedCut = BreakUpLargeNumbers(db.lastTitle.cut)
         local formattedCutPerHour = BreakUpLargeNumbers(db.lastTitle.cut / (time / 60 / 60))

@@ -4,8 +4,9 @@
 ## Notes: Nova Boosting Info UI /nb help
 ## Author: Lars
 ## SavedVariables: NovaSaved
+## OptionalDeps: Ace3
+## X-Embeds: Ace3
 
-Libs\LibStub\LibStub.lua
-Libs\LibDeflate\LibDeflate.lua
-Libs\LibOpenRaid\LibOpenRaid.lua
+embeds.xml
+
 core.lua
