@@ -1,4 +1,9 @@
 local addonName = ...
+
+local idToSlot = {}
+for name, slotId in pairs(Enum.ItemRedundancySlot) do
+    idToSlot[slotId] = name
+end
 local fontSize = select(2, GetChatWindowInfo(1))
 local addonPrefix = string.format("[|TInterface\\Addons\\NovaBoostingUI\\Images\\Logo.png:%d|t|cFFEF9009%s|r]", fontSize, addonName)
 local function printMessage(msg, ...)
@@ -30,8 +35,8 @@ end
 local function checkProgress(db)
     if db.dungeonCount == db.maxDungeons then
         db.active = false
-        local time = GetTime() - db.startTime
-        local formattedTime = string.format("%d:%02d", time / 60, time % 60)
+        local time = GetTime() - db.startTimelocal
+        local formattedTime = string.format("%02d:%02d:%02d", time / 3600, (time / 60) % 60, time % 60)
         local formattedCut = BreakUpLargeNumbers(db.lastTitle.cut)
         local formattedCutPerHour = BreakUpLargeNumbers(db.lastTitle.cut / (time / 60 / 60))
         printMessage("the Boost took %s and you made %s Gold (%s Gold per Hour)", formattedTime, formattedCut, formattedCutPerHour)
@@ -52,11 +57,15 @@ local function OnEvent(self, event, ...)
         if self.db.dungeonCount == 0 then
             self.db.startTime = GetTime()
         end
-        throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
+        if self.db.active then
+            throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
+        end
     elseif event == "CHALLENGE_MODE_COMPLETED" then
-        self.db.dungeonCount = self.db.dungeonCount + 1
-        checkProgress(self.db)
-        throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
+        if self.db.active then
+            self.db.dungeonCount = self.db.dungeonCount + 1
+            checkProgress(self.db)
+            throwEvent("DUNGEON", {count = self.db.dungeonCount, max = self.db.maxDungeons}, self.db)
+        end
     end
 end
 
@@ -104,8 +113,12 @@ SlashCmdList.NBUI = function(msg)
         db.startTime = GetTime()
         printMessage("Boost started")
     elseif msg == "stop" then
-        db.dungeonCount = db.maxDungeons
-        checkProgress(db)
+        if db.active then
+            db.dungeonCount = db.maxDungeons
+            checkProgress(db)
+        else
+            printMessage("There is no active Boost")
+        end
     elseif msg == "help" then
         printMessage("/nb and /boost can be used as Prefix")
         printMessage("/nb help to show this message")
@@ -116,27 +129,27 @@ SlashCmdList.NBUI = function(msg)
         printMessage("/nb calc <cut> to calculate cut (15%%)")
         printMessage("/nb check <ilvl> to check if you can trade")
         printMessage("/nb <Key Message> to update the title and cut")
-    elseif string.match(msg, "^check") then
-        local minIlvl = tonumber(string.match(msg, "(%d+)$"))
+    elseif msg:match("^check") then
+        local minIlvl = tonumber(msg:match("(%d+)$"))
         local data = {}
-        for cID = 2264, 2280 do
-            local cInfo = C_CurrencyInfo.GetCurrencyInfo(cID)
-            if cInfo.quantity < minIlvl then
-                data[cID] = {
-                    name = string.match(cInfo.name, "- (.+) %["),
-                    ilvl = cInfo.quantity
+        for slot = 0, 16 do
+            local cHWM = C_ItemUpgrade.GetHighWatermarkForSlot(slot)
+            if cHWM < minIlvl then
+                data[slot] = {
+                    name = idToSlot[slot]:gsub("%u", " %1"),
+                    ilvl = cHWM
                 }
             end
         end
         throwEvent("CHECK", data, db)
         printMessage("Checking for non tradeable Slots (ilvl < %d)", minIlvl)
-    elseif string.match(msg, "^calc") then
-        local cut = string.match(msg, "(%d+)$"):gsub("%p", ""):gsub("[kK]", "000")
+    elseif msg:match("^calc") then
+        local cut = msg:match("calc (.+)"):gsub("%p", ""):gsub("[kK]", "000")
         printMessage("Your cut would be %s Gold", BreakUpLargeNumbers(tonumber(cut) * 0.15))
     else
-        local title = string.match(msg, ":keystone_nova:%s+(.+):[ha]")
-        local count = string.match(title, "(%d+)x")
-        local cut = string.match(msg, ":goldss:%s+(.+)"):gsub("%p", ""):gsub("[kK]", "000")
+        local title = msg:match(":keystone_nova:%s+(.+):[ha]")
+        local count = title:match("(%d+)x")
+        local cut = msg:match(":goldss:%s+(.+)"):gsub("%p", ""):gsub("[kK]", "000")
         if (not title) or (not cut) then
             printMessage("Invalid Syntax use /nb help for more information")
             return
