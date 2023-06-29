@@ -3,7 +3,7 @@
 ## Title: Nova Boosting UI
 ## Notes: Nova Boosting Info UI /nb help
 ## Author: Lars
-## SavedVariables: NovaBoostingDB
+## SavedVariables: NovaSaved
 
 Libs\LibStub\LibStub.lua
 Libs\LibDeflate\LibDeflate.lua

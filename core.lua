@@ -47,8 +47,8 @@ end
 local function OnEvent(self, event, ...)
     if event == "ADDON_LOADED" then
         if ... == addonName then
-            NovaBoostingDB = NovaBoostingDB or {}
-            self.db = NovaBoostingDB
+            NovaSaved = NovaSaved or {}
+            self.db = NovaSaved
             if self.db.active then
                 printMessage("Boost Still Active from Last Session use /nb last to show last data")
             end
